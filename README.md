@@ -19,7 +19,7 @@ poetry install
 ## Usage
 
 ```
-rocks
+poetry run rocks  # or use poetry shell
 ```
 
 The server does not use SSL so if you need that you'll need to set up a reverse proxy or a secure tunnel.
