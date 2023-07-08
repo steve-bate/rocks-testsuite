@@ -1,0 +1,84 @@
+{% macro item_table(items) %}
+<table>
+    {% for test_id, result in items.items() %}
+    <tr>
+        <td>
+            <b>{{ metadata["test_id"].requirement_level if "test_id" in metadata else "" }} {{ test_id }}:
+                {{ metadata["test_id"].description if "test_id" in metadata else ""}}</b>
+        </td>
+        <td style="text-align: right;" nowrap>
+            <b>[
+                {% if result == True %}<span class="result-log-success">Yes</span>{% endif %}
+                {% if result == False %}<span class="result-log-fail">No</span>{% endif %}
+            ]</b>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endmacro %}
+
+<h2 style="text-align: center;">Results</h2>
+
+{% if config["testing-client"] %}
+<h3>Client tests</h3>
+{{ item_table(results["client-test-items"]) }}
+{% endif %}
+
+{# TODO C2S testing and reporting
+{% if config["testing-c2s-server"] %}
+<h3>Server: Client-to-Server tests</h3>
+{{ item_table(results) }}
+{% endif %}
+#}
+
+{#
+- server-inbox-deliver-c2s
+- server-inbox-deliver
+- server-inbox-accept
+#}
+
+{% if config["testing-s2s-server"] %}
+<h3>Server: Federation tests</h3>
+{{ item_table(results["server-inbox-test-items"]) }}
+{% endif %}
+
+{% if config["testing-c2s-server"] or config["testing-s2s-server"] %}
+<h3>Server: Common tests</h3>
+{{ item_table(results["server-common-test-items"]) }}
+{% endif %}
+
+<hr>
+<h3 style="text-align: center; padding: 10px;">Looks good?</h3>
+<p>If the above looks correct, enter a name for your project and any
+other appropriate information you'd like to share, then press
+submit to generate an implementation report:
+</p>
+
+{{ message  | safe }}
+
+<p>
+<b>Project name: </b><br>
+<input name="project-name" style="width: 100%;" required value="{{ answers["project-name"] }}">
+<p>
+
+<p>
+<b>Website: </b><br>
+<input name="website" style="width: 100%;" required value="{{ answers["website"] }}">
+<p>
+
+<p>
+<b>Source code repo: </b><br>
+<input name="repo" style="width: 100%;" required value="{{ answers["repo"] }}">
+<p>
+
+<p>
+<b>Interop with other projects: </b><br>
+<i style="color: grey;">supports <a href="http://commonmark.org/help/" tabindex="-1">markdown</a></i><br>
+<input name="interop" style="width: 100%;" value="{{ answers["interop"] }}">
+<p>
+
+<p>
+<b>Notes: </b><br>
+<i style="color: grey;">supports <a href="http://commonmark.org/help/" tabindex="-1">markdown</a></i><br>
+<textarea name="notes" style="width: 100%;" rows="4">{{ answers["notes"] }}</textarea>
+<p>

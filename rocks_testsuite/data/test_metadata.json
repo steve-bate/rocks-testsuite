@@ -1,0 +1,392 @@
+[
+    {
+      "id": "outbox:undo",
+      "requirement_level": "NON-NORMATIVE",
+      "description": "Supports the Undo activity in the client-to-server protocol"
+    },
+    {
+      "id": "outbox:undo:ensures-activity-and-actor-are-same",
+      "requirement_level": "MUST",
+      "description": "Ensures that the activity and actor are the same in activity being undone."
+    },
+    {
+      "id": "outbox:block",
+      "requirement_level": "SHOULD",
+      "description": "Block"
+    },
+    {
+      "id": "outbox:block:prevent-interaction-with-actor",
+      "requirement_level": "SHOULD",
+      "description": "Prevent the blocked object from interacting with any object posted by the actor."
+    },
+    {
+      "id": "outbox:like",
+      "requirement_level": "SHOULD",
+      "description": "Like"
+    },
+    {
+      "id": "outbox:like:adds-object-to-liked",
+      "requirement_level": "SHOULD",
+      "description": "Adds the object to the actor's Liked Collection."
+    },
+    {
+      "id": "outbox:remove",
+      "requirement_level": "SHOULD",
+      "description": "Remove"
+    },
+    {
+      "id": "outbox:remove:removes-from-target",
+      "requirement_level": "SHOULD",
+      "description": "Remove object from the target Collection, unless not allowed due to requirements in 7.5"
+    },
+    {
+      "id": "outbox:add",
+      "requirement_level": "SHOULD",
+      "description": "Add"
+    },
+    {
+      "id": "outbox:add:adds-object-to-target",
+      "requirement_level": "SHOULD",
+      "description": "Adds object to the target Collection, unless not allowed due to requirements in 7.5"
+    },
+    {
+      "id": "outbox:follow",
+      "requirement_level": "SHOULD",
+      "description": "Follow"
+    },
+    {
+      "id": "outbox:follow:adds-followed-object",
+      "requirement_level": "SHOULD",
+      "description": "Adds followed object to the actor's Following Collection"
+    },
+    {
+      "id": "outbox:create",
+      "requirement_level": "SHOULD",
+      "description": "Create"
+    },
+    {
+      "id": "outbox:create:actor-to-attributed-to",
+      "requirement_level": "SHOULD",
+      "description": "Create's actor property is copied to be the value of .object.attributedTo"
+    },
+    {
+      "id": "outbox:create:merges-audience-properties",
+      "requirement_level": "SHOULD",
+      "description": "merges audience properties (to, bto, cc, bcc, audience) with the Create's 'object's audience properties"
+    },
+    {
+      "id": "outbox:update",
+      "requirement_level": "MUST",
+      "description": "Update"
+    },
+    {
+      "id": "outbox:update:partial",
+      "requirement_level": "NON-NORMATIVE",
+      "description": "Supports partial updates in client-to-server protocol (but not server-to-server)"
+    },
+    {
+      "id": "outbox:location-header",
+      "requirement_level": "MUST",
+      "description": "Response includes Location header whose value is id of new object, unless the Activity is transient"
+    },
+    {
+      "id": "outbox:responds-201-created",
+      "requirement_level": "MUST",
+      "description": "Responds with status code 201 Created"
+    },
+    {
+      "id": "outbox:ignores-id",
+      "requirement_level": "MUST",
+      "description": "Ignores 'id' on submitted objects, and generates a new id instead"
+    },
+    {
+      "id": "outbox:removes-bto-and-bcc",
+      "requirement_level": "MUST",
+      "description": "Removes the `bto` and `bcc` properties from Objects before storage and delivery"
+    },
+    {
+      "id": "outbox:accepts-non-activity-objects",
+      "requirement_level": "MUST",
+      "description": "Accepts non-Activity Objects, and converts to Create Activities per 7.1.1"
+    },
+    {
+      "id": "outbox:accepts-activities",
+      "requirement_level": "MUST",
+      "description": "Accepts Activity Objects"
+    },
+    {
+      "id": "inbox:delivery:sharedInbox",
+      "requirement_level": "MAY",
+      "description": "Delivers to sharedInbox endpoints to reduce the number of receiving actors delivered to by identifying all followers which share the same sharedInbox who would otherwise be individual recipients and instead deliver objects to said sharedInbox."
+    },
+    {
+      "id": "inbox:delivery:sharedInbox:deliver-to-inbox-if-no-sharedInbox",
+      "requirement_level": "MUST",
+      "description": "(For servers which deliver to sharedInbox:) Deliver to actor inboxes and collections otherwise addressed which do not have a sharedInbox."
+    },
+    {
+      "id": "inbox:delivery:do-not-deliver-block",
+      "requirement_level": "SHOULD",
+      "description": "SHOULD NOT deliver Block Activities to their object."
+    },
+    {
+      "id": "inbox:delivery:do-not-deliver-to-actor",
+      "requirement_level": "MUST",
+      "description": "Does not deliver to recipients which are the same as the actor of the Activity being notified about"
+    },
+    {
+      "id": "inbox:delivery:deduplicates-final-recipient-list",
+      "requirement_level": "MUST",
+      "description": "Deduplicates final recipient list"
+    },
+    {
+      "id": "inbox:delivery:delivers-with-target-for-certain-activities",
+      "requirement_level": "MUST",
+      "description": "Delivers activity with 'target' property if the Activity type is one of Add, Remove"
+    },
+    {
+      "id": "inbox:delivery:delivers-with-object-for-certain-activities",
+      "requirement_level": "MUST",
+      "description": "Delivers activity with 'object' property if the Activity type is one of Create, Update, Delete, Follow, Add, Remove, Like, Block, Undo"
+    },
+    {
+      "id": "inbox:delivery:deliver-to-collection",
+      "requirement_level": "MUST",
+      "description": "Delivers to all items in recipients that are Collections or OrderedCollections"
+    },
+    {
+      "id": "inbox:delivery:deliver-to-collection:recursively",
+      "requirement_level": "MUST",
+      "description": "Applies the above, recursively if the Collection contains Collections, and limits recursion depth >= 1"
+    },
+    {
+      "id": "inbox:delivery:submit-with-credentials",
+      "requirement_level": "MUST",
+      "description": "Dereferences delivery targets with the submitting user's credentials"
+    },
+    {
+      "id": "inbox:delivery:adds-id",
+      "requirement_level": "MUST",
+      "description": "Provides an `id` all Activities sent to other servers, unless the activity is intentionally transient."
+    },
+    {
+      "id": "inbox:delivery:addressing",
+      "requirement_level": "MUST",
+      "description": "Utilizes `to`, `bto`, `cc`, and `bcc` to determine delivery recipients."
+    },
+    {
+      "id": "inbox:delivery:performs-delivery",
+      "requirement_level": "MUST",
+      "description": "Performs delivery on all Activities posted to the outbox"
+    },
+    {
+      "id": "inbox:accept:undo",
+      "requirement_level": "NON-NORMATIVE",
+      "description": "Performs Undo of object in federated context"
+    },
+    {
+      "id": "inbox:accept:announce:add-to-shares-collection",
+      "requirement_level": "SHOULD",
+      "description": "Increments object's count of shares by adding the received activity to the 'shares' collection if this collection is present"
+    },
+    {
+      "id": "inbox:accept:like:indicate-like-performed",
+      "requirement_level": "SHOULD",
+      "description": "Perform appropriate indication of the like being performed (See 7.10 for examples)"
+    },
+    {
+      "id": "inbox:accept:remove:from-collection",
+      "requirement_level": "SHOULD",
+      "description": "Remove the object from the Collection specified in the target property, unless not allowed per requirements in 7.9"
+    },
+    {
+      "id": "inbox:accept:add:to-collection",
+      "requirement_level": "SHOULD",
+      "description": "Add the object to the Collection specified in the target property, unless not allowed to per requirements in 7.8"
+    },
+    {
+      "id": "inbox:accept:reject:does-not-add-actor-to-users-following",
+      "requirement_level": "MUST",
+      "description": "If in reply to a Follow activity, MUST NOT add actor to receiver's Following Collection"
+    },
+    {
+      "id": "inbox:accept:accept:add-actor-to-users-following",
+      "requirement_level": "SHOULD",
+      "description": "If in reply to a Follow activity, adds actor to receiver's Following Collection"
+    },
+    {
+      "id": "inbox:accept:follow:generate-accept-or-reject",
+      "requirement_level": "SHOULD",
+      "description": "Generates either an Accept or Reject activity with Follow as object and deliver to actor of the Follow"
+    },
+    {
+      "id": "inbox:accept:follow:add-actor-to-users-followers",
+      "requirement_level": "SHOULD",
+      "description": "Add the actor to the object user's Followers Collection."
+    },
+    {
+      "id": "inbox:accept:dont-blindly-trust",
+      "requirement_level": "SHOULD",
+      "description": "Don't trust content received from a server other than the content's origin without some form of verification."
+    },
+    {
+      "id": "inbox:accept:update:completely-replace",
+      "requirement_level": "SHOULD",
+      "description": "Completely replace its copy of the activity with the newly received value"
+    },
+    {
+      "id": "inbox:accept:update:is-authorized",
+      "requirement_level": "MUST",
+      "description": "Take care to be sure that the Update is authorized to modify its object"
+    },
+    {
+      "id": "inbox:accept:delete",
+      "requirement_level": "SHOULD",
+      "description": "Assuming object is owned by sending actor/server, removes object's representation"
+    },
+    {
+      "id": "inbox:accept:delete:tombstone",
+      "requirement_level": "MAY",
+      "description": "MAY replace object's representation with a Tombstone object"
+    },
+    {
+      "id": "inbox:accept:create",
+      "requirement_level": "NON-NORMATIVE",
+      "description": "Supports receiving a Create object in an actor's inbox"
+    },
+    {
+      "id": "inbox:accept:special-forward:limits-recursion",
+      "requirement_level": "SHOULD",
+      "description": "Limit recursion in this process"
+    },
+    {
+      "id": "inbox:accept:special-forward:recurses",
+      "requirement_level": "SHOULD",
+      "description": "Recurse through to, bto, cc, bcc, audience object values to determine whether/where to forward according to criteria in 7.1.2"
+    },
+    {
+      "id": "inbox:accept:special-forward",
+      "requirement_level": "MUST",
+      "description": "Forwards incoming activities to the values of to, bto, cc, bcc, audience if and only if criteria in 7.1.2 are met."
+    },
+    {
+      "id": "inbox:accept:deduplicate",
+      "requirement_level": "MUST",
+      "description": "Deduplicates activities returned by the inbox by comparing activity `id`s"
+    },
+    {
+      "id": "server:security-considerations:filter-incoming-content",
+      "requirement_level": "NON-NORMATIVE",
+      "description": "Server filters incoming content both by local untrusted users and any remote users through some sort of spam filter"
+    },
+    {
+      "id": "server:security-considerations:uri-scheme-whitelist",
+      "requirement_level": "NON-NORMATIVE",
+      "description": "Implementation applies a whitelist of allowed URI protocols before issuing requests, e.g. for inbox delivery"
+    },
+    {
+      "id": "server:security-considerations:do-not-post-to-localhost",
+      "requirement_level": "NON-NORMATIVE",
+      "description": "By default, implementation does not make HTTP requests to localhost when delivering Activities"
+    },
+    {
+      "id": "server:security-considerations:actually-posted-by-actor",
+      "requirement_level": "NON-NORMATIVE",
+      "description": "Server verifies that the new content is really posted by the actor indicated in Objects received in inbox and outbox"
+    },
+    {
+      "id": "server:object-retrieval:private-403-or-404",
+      "requirement_level": "SHOULD",
+      "description": "Respond with a 403 Forbidden status code to all requests that access Objects considered Private (or 404 if the server does not want to disclose the existence of the object, or another HTTP status code if specified by the authorization method)"
+    },
+    {
+      "id": "server:object-retrieval:deleted-object:404-status",
+      "requirement_level": "SHOULD",
+      "description": "Respond with 404 status code for Object URIs that have never existed"
+    },
+    {
+      "id": "server:object-retrieval:deleted-object:410-status",
+      "requirement_level": "SHOULD",
+      "description": "Respond with 410 Gone status code if Tombstone is in response body, otherwise responds with 404 Not Found"
+    },
+    {
+      "id": "server:object-retrieval:deleted-object:tombstone",
+      "requirement_level": "MAY",
+      "description": "Responds with response body that is an ActivityStreams Object of type `Tombstone` (if the server is choosing to disclose that the object has been removed)"
+    },
+    {
+      "id": "server:object-retrieval:respond-with-as2-re-activity-json",
+      "requirement_level": "SHOULD",
+      "description": "Respond with the ActivityStreams object representation in response to requests that primarily Accept the media type `application/activity+json`"
+    },
+    {
+      "id": "server:object-retrieval:respond-with-as2-re-ld-json",
+      "requirement_level": "MUST",
+      "description": "Respond with the ActivityStreams object representation in response to requests that primarily Accept the media type `application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"`"
+    },
+    {
+      "id": "server:object-retrieval:get-id",
+      "requirement_level": "MAY",
+      "description": "Allow dereferencing Object `id`s by responding to HTTP GET requests with a representation of the Object"
+    },
+    {
+      "id": "server:inbox:filtered-per-permissions",
+      "requirement_level": "SHOULD",
+      "description": "Server filters inbox content according to the requester's permission"
+    },
+    {
+      "id": "server:inbox:is-orderedcollection",
+      "requirement_level": "MUST",
+      "description": "inbox is an OrderedCollection"
+    },
+    {
+      "id": "server:inbox:responds-to-get",
+      "requirement_level": "NON-NORMATIVE",
+      "description": "Server responds to GET request at inbox URL"
+    },
+    {
+      "id": "client:retrieval:accept-header",
+      "requirement_level": "MUST",
+      "description": "When retrieving objects, Client specifies an Accept header with the `application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"` media type ([3.2](https://w3c.github.io/activitypub/#retrieving-objects))"
+    },
+    {
+      "id": "client:submission:recursively-add-targets",
+      "requirement_level": "SHOULD",
+      "description": "Before submitting a new activity or object, Client infers appropriate target audience by recursively looking at certain properties (e.g. `inReplyTo`, See Section 7), and adds these targets to the new submission's audience."
+    },
+    {
+      "id": "client:submission:recursively-add-targets:limits-depth",
+      "requirement_level": "SHOULD",
+      "description": "Client limits depth of this recursion."
+    },
+    {
+      "id": "client:submission:authenticated",
+      "requirement_level": "MUST",
+      "description": "Client sumission request is authenticated with the credentials of the user to whom the outbox belongs"
+    },
+    {
+      "id": "client:submission:submit-objects",
+      "requirement_level": "MUST",
+      "description": "Client submission request body is either a single Activity or a single non-Activity Object"
+    },
+    {
+      "id": "client:submission:submit-objects:provide-target",
+      "requirement_level": "MUST",
+      "description": "Clients provide the target property when submitting the following activity types to an outbox: Add, Remove."
+    },
+    {
+      "id": "client:submission:submit-objects:provide-object",
+      "requirement_level": "MUST",
+      "description": "Clients provide the object property when submitting the following activity types to an outbox: Create, Update, Delete, Follow, Add, Remove, Like, Block, Undo."
+    },
+    {
+      "id": "client:submission:submit-post-with-content-type",
+      "requirement_level": "MUST",
+      "description": "Client submits activity by sending an HTTP post request to the outbox URL with the Content-Type of application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+    },
+    {
+      "id": "client:submission:discovers-url-from-profile",
+      "requirement_level": "MUST",
+      "description": "Client discovers the URL of a user's outbox from their profile"
+    }
+  ]

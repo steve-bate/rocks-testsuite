@@ -1,0 +1,383 @@
+{
+  "client-test-items": [
+    {
+      "title": "Client: Basic submission",
+      "description": "Construct a basic activity and submit it to the actor's outbox.",
+      "questions": [
+        {
+          "id": "client:submission:discovers-url-from-profile",
+          "text": "Client discovers the URL of a user's outbox from their profile"
+        },
+        {
+          "id": "client:submission:submit-post-with-content-type",
+          "text": "Client submits activity by sending an HTTP post request to the outbox URL with the <code>Content-Type</code> of <code>application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"</code>"
+        },
+        {
+          "id": "client:submission:submit-objects",
+          "text": "Client submission request body is either a single Activity or a single non-Activity Object"
+        },
+        {
+          "id": "client:submission:authenticated",
+          "text": "Client sumission request is authenticated with the credentials of the user to whom the outbox belongs (this could be using an OAuth 2.0 bearer token or something else)"
+        }
+      ]
+    },
+    {
+      "title": "Client: Required properties",
+      "questions": [
+        {
+          "id": "client:submission:submit-objects:provide-object",
+          "text": "Client provides the object property when submitting the following activity types to an outbox: Create, Update, Delete, Follow, Add, Remove, Like, Block, Undo."
+        },
+        {
+          "id": "client:submission:submit-objects:provide-target",
+          "text": "Client provides the target property when submitting the following activity types to an outbox: Add, Remove."
+        }
+      ]
+    },
+    {
+      "title": "Client: Add targets on reply",
+      "description": "Reply to a post with multiple recipients.",
+      "questions": [
+        {
+          "id": "client:submission:recursively-add-targets",
+          "text": "The client suggests audience targeting based on participants in the referenced thread"
+        },
+        {
+          "id": "client:submission:recursively-add-targets:limits-depth",
+          "text": "The client also limits depth of recursion used to gather targeting."
+        }
+      ]
+    },
+    {
+      "title": "Client: Accept header on object retrieval",
+      "description": "Trigger the client to retrieve some remote object.",
+      "questions": [
+        {
+          "id": "client:retrieval:accept-header",
+          "text": "When retrieving objects, Client specifies an <code>Accept</code> header with the <code>application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"</code> media type"
+        }
+      ]
+    }
+  ],
+  "server-common-test-items": [
+    {
+      "title": "Server: Fetching the inbox",
+      "description": "Try retrieving the actor's <code>inbox</code> of an actor.",
+      "questions": [
+        {
+          "id": "server:inbox:responds-to-get",
+          "text": "Server responds to GET request at inbox URL"
+        },
+        {
+          "id": "server:inbox:is-orderedcollection",
+          "text": "inbox is an OrderedCollection"
+        },
+        {
+          "id": "server:inbox:filtered-per-permissions",
+          "text": "Server filters inbox content according to the requester's permission"
+        }
+      ]
+    },
+    {
+      "title": "Server: Retrieving objects",
+      "description": "Retrieve an object from the server by its id by performing a GET request, presumably using <code>application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"</code> and possibly <code>application/activity+json</code> in the <code>Accept</code> header.",
+      "questions": [
+        {
+          "id": "server:object-retrieval:get-id",
+          "text": "Successfully retrieved the object by performing GET against its id."
+        },
+        {
+          "id": "server:object-retrieval:respond-with-as2-re-ld-json",
+          "text": "Server responded with the ActivityStreams object representation in response to <code>Accept</code> header of <code>application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"</code>"
+        },
+        {
+          "id": "server:object-retrieval:respond-with-as2-re-activity-json",
+          "text": "Server responded with the ActivityStreams object representation in response to <code>Accept</code> header of <code>application/activity+json</code>"
+        }
+      ]
+    },
+    {
+      "title": "Server: Retrieving deleted objects",
+      "description": "Test deleting objects on the server and then retrieving the object by its <code>id</code>.",
+      "questions": [
+        {
+          "id": "server:object-retrieval:deleted-object:tombstone",
+          "text": "Server responds with response body that is an ActivityStreams Object of type <code>Tombstone</code> (if the server is choosing to disclose that the object has been removed)"
+        },
+        {
+          "id": "server:object-retrieval:deleted-object:410-status",
+          "text": "Respond with 410 Gone status code if <code>Tombstone</code> is in response body, otherwise responds with 404 Not Found"
+        },
+        {
+          "id": "server:object-retrieval:deleted-object:404-status",
+          "text": "Respond with 404 status code for Object URIs that have never existed"
+        }
+      ]
+    },
+    {
+      "title": "Server: Forbidding retrieval of private objects",
+      "questions": [
+        {
+          "id": "server:object-retrieval:private-403-or-404",
+          "text": "Respond with a 403 Forbidden status code to all requests that access Objects considered Private (or 404 if the server does not want to disclose the existence of the object, or another HTTP status code if specified by the authorization method)"
+        }
+      ]
+    },
+    {
+      "title": "Server security considerations",
+      "questions": [
+        {
+          "id": "server:security-considerations:actually-posted-by-actor",
+          "text": "Server verifies that the new content is really posted by the actor indicated in Objects received in inbox and outbox"
+        },
+        {
+          "id": "server:security-considerations:do-not-post-to-localhost",
+          "text": "By default, implementation does not make HTTP requests to localhost when delivering Activities"
+        },
+        {
+          "id": "server:security-considerations:uri-scheme-whitelist",
+          "text": "Implementation applies a whitelist of allowed URI protocols before issuing requests, e.g. for inbox delivery"
+        },
+        {
+          "id": "server:security-considerations:filter-incoming-content",
+          "text": "Server filters incoming content both by local untrusted users and any remote users through some sort of spam filter"
+        },
+        {
+          "id": "server:security-considerations:sanitize-fields",
+          "text": "Implementation takes care to santizie fields containing markup to prevent cross site scripting attacks"
+        }
+      ]
+    }
+  ],
+  "server-inbox-deliver-c2s": [
+    {
+      "title": "S2S Server: Federating from the outbox",
+      "description": "Construct and submit activities to your actor's outbox making use of the <code>to</code>, <code>cc</code>, <code>bcc</code>, and <code>bto</code> addressing fields. ",
+      "questions": [
+        {
+          "id": "inbox:delivery:performs-delivery",
+          "text": "Server performed delivery on all Activities posted to the outbox"
+        },
+        {
+          "id": "inbox:delivery:addressing",
+          "text": "Server utilized <code>to</code>, <code>cc</code>, <code>bcc</code>, and <code>bto</code> to determine delivery recipients."
+        }
+      ]
+    },
+    {
+      "title": "S2S Server: Adding an id",
+      "description": "Submit an activity to your outbox without specifying an <code>id</code>.  The server should add an <code>id</code> to the object before delivering.",
+      "questions": [
+        {
+          "id": "inbox:delivery:adds-id",
+          "text": "The server added an <code>id</code> to the activity."
+        }
+      ]
+    },
+    {
+      "title": "S2S Server: Delivering with credentials",
+      "description": "Construct and deliver an activity with addressing pointing at the id of a collection the activity's actor can access but which is not on their server.",
+      "questions": [
+        {
+          "id": "inbox:delivery:submit-with-credentials",
+          "text": "Did the server retrieve the members of the collection by using the credentials of the actor? (For example, if the actor has a public key on their profile, the request may be signed with unquotelinkhttps://tools.ietf.org/html/draft-cavage-http-signatures-08HTTP Signatures.)"
+        },
+        {
+          "id": "inbox:delivery:deliver-to-collection",
+          "text": "Did the server traverse the collection to deliver to the inboxes of all items in the collection?"
+        },
+        {
+          "id": "inbox:delivery:deliver-to-collection:recursively",
+          "text": "Does the implementation deliver recursively to collections within a collection (with some limit on recursion >= 1)?"
+        }
+      ]
+    }
+  ],
+  "server-inbox-delivery": [
+    {
+      "title": "S2S Server: Activities requiring the object property",
+      "description": "The distribution of the following activities require that they contain the <code>object</code> property: <code>Create</code>, <code>Update</code>, <code>Delete</code>, <code>Follow</code>, <code>Add</code>, <code>Remove</code>, <code>Like</code>, <code>Block</code>, <code>Undo</code>.",
+      "questions": [
+        {
+          "id": "inbox:delivery:delivers-with-object-for-certain-activities",
+          "text": "quoteImplementation always includes <code>object</code> property for each of the above supported activities."
+        }
+      ]
+    },
+    {
+      "title": "S2S Server: Activities requiring the target property",
+      "description": "The distribution of the following activities require that they contain the <code>target</code> property: <code>Add</code>, <code>Remove</code>.",
+      "questions": [
+        {
+          "id": "inbox:delivery:delivers-with-target-for-certain-activities",
+          "text": "quoteImplementation always includes <code>target</code> property for each of the above supported activities."
+        }
+      ]
+    },
+    {
+      "title": "S2S Server: Deduplication of recipient list",
+      "description": "Attempt to submit for delivery an activity that addresses the same actor (ie an actor with the same <code>id</code>) twice. (For example, the same actor could appear on both the <code>to</code> and <code>cc</code> fields, or the actor could be explicitly addressed in <code>to</code> but could also be a member of the addressed <code>followers</code> collection of the sending actor.)  The server should deduplicate the list of inboxes to deliver to before delivering.",
+      "questions": [
+        {
+          "id": "inbox:delivery:deduplicates-final-recipient-list",
+          "text": "quoteThe final recipient list is deduplicated before delivery."
+        }
+      ]
+    },
+    {
+      "title": "S2S Server: Do-not-deliver considerations",
+      "questions": [
+        {
+          "id": "inbox:delivery:do-not-deliver-to-actor",
+          "text": "Server does not deliver to recipients which are the same as the actor of the Activity being notified about"
+        },
+        {
+          "id": "inbox:delivery:do-not-deliver-block",
+          "text": "Server does not deliver <code>Block</code> activities to their <code>object</code>."
+        }
+      ]
+    },
+    {
+      "title": "S2S Server: Support for sharedInbox",
+      "questions": [
+        {
+          "id": "inbox:delivery:sharedInbox",
+          "text": "Delivers to sharedInbox endpoints to reduce the number of receiving actors delivered to by identifying all followers which share the same sharedInbox who would otherwise be individual recipients and instead deliver objects to said sharedInbox."
+        },
+        {
+          "id": "inbox:delivery:sharedInbox:deliver-to-inbox-if-no-sharedInbox",
+          "text": "Deliver to actor inboxes and collections otherwise addressed which do not have a sharedInbox."
+        }
+      ]
+    }
+  ],
+  "server-inbox-accept": [
+    {
+      "title": "S2S Server: Deduplicating received activities",
+      "questions": [
+        {
+          "id": "inbox:accept:deduplicate",
+          "text": "Server deduplicates activities received in inbox by comparing activity <code>id</code>s"
+        }
+      ]
+    },
+    {
+      "title": "S2S Server: Special forwarding mechanism",
+      "description": "ActivityPub contains a unquotelinkhttps://www.w3.org/TR/activitypub/#inbox-forwardingspecial mechanism for forwarding replies to avoid \"ghost replies\".",
+      "questions": [
+        {
+          "id": "inbox:accept:special-forward",
+          "text": "Forwards incoming activities to the values of <code>to</code>, <code>bto</code>, <code>cc</code>, <code>bcc</code>, <code>audience</code> if and only if unquotelinkhttps://www.w3.org/TR/activitypub/#inbox-forwardingcriteria are met."
+        },
+        {
+          "id": "inbox:accept:special-forward:recurses",
+          "text": "Recurse through <code>to</code>, <code>bto</code>, <code>cc</code>, <code>bcc</code>, <code>audience</code> object values to determine whether/where to forward according to criteria in 7.1.2"
+        },
+        {
+          "id": "inbox:accept:special-forward:limits-recursion",
+          "text": "Limits depth of this recursion."
+        }
+      ]
+    },
+    {
+      "title": "S2S Server: Verification of content authorship",
+      "description": "Before accepting activities delivered to an actor's inbox some sort of verification should be performed.  (For example, if the delivering actor has a public key on their profile, the request delivering the activity may be signed with unquotelinkhttps://tools.ietf.org/html/draft-cavage-http-signatures-08HTTP Signatures.)",
+      "questions": [
+        {
+          "id": "inbox:accept:dont-blindly-trust",
+          "text": "Don't trust content received from a server other than the content's origin without some form of verification."
+        }
+      ]
+    },
+    {
+      "title": "S2S Server: Update activity",
+      "description": "On receiving an <code>Update</code> activity to an actor's inbox, the server:",
+      "questions": [
+        {
+          "id": "inbox:accept:update:is-authorized",
+          "text": "Takes care to be sure that the Update is authorized to modify its object"
+        },
+        {
+          "id": "inbox:accept:update:completely-replace",
+          "text": "Completely replaces its copy of the activity with the newly received value"
+        }
+      ]
+    },
+    {
+      "title": "S2S Server: Delete activity",
+      "questions": [
+        {
+          "id": "inbox:accept:delete",
+          "text": "<code>Delete</code> removes object's representation, assuming object is owned by sending actor/server"
+        },
+        {
+          "id": "inbox:accept:delete:tombstone",
+          "text": "Replaces deleted object with a Tombstone object (optional)"
+        }
+      ]
+    },
+    {
+      "title": "S2S Server: Following, and handling accept/reject of follows",
+      "questions": [
+        {
+          "id": "inbox:accept:follow:add-actor-to-users-followers",
+          "text": "<code>Follow</code> should add the activity's actor to the receiving actor's Followers Collection."
+        },
+        {
+          "id": "inbox:accept:follow:generate-accept-or-reject",
+          "text": "Generates either an Accept or Reject activity with Follow as object and deliver to actor of the Follow"
+        },
+        {
+          "id": "inbox:accept:accept:add-actor-to-users-following",
+          "text": "If receiving an Accept in reply to a Follow activity, adds actor to receiver's Following Collection"
+        },
+        {
+          "id": "inbox:accept:reject:does-not-add-actor-to-users-following",
+          "text": "If receiving a Reject in reply to a Follow activity, does <i>not</i> add actor to receiver's Following Collection"
+        }
+      ]
+    },
+    {
+      "title": "S2S Server: Activity acceptance side-effects",
+      "description": "Test accepting the following activities to an actor's inbox and observe the side effects:",
+      "questions": [
+        {
+          "id": "inbox:accept:create",
+          "text": "<code>Create</code> makes record of the object existing"
+        },
+        {
+          "id": "inbox:accept:add:to-collection",
+          "text": "<code>Add</code> should add the activity's <code>object</code> to the Collection specified in the <code>target</code> property, unless unquotelinkhttps://www.w3.org/TR/activitypub/#add-activity-inboxnot allowed per requirements"
+        },
+        {
+          "id": "inbox:accept:remove:from-collection",
+          "text": "<code>Remove</code> should remove the object from the Collection specified in the <code>target</code> property, unless unquotelinkhttps://www.w3.org/TR/activitypub/#remove-activity-inboxnot allowed per requirements"
+        },
+        {
+          "id": "inbox:accept:like:indicate-like-performed",
+          "text": "<code>Like</code> increments the object's count of likes by adding the received activity to the unquotelinkhttps://www.w3.org/TR/activitypub/#likeslikes collection if this collection is present"
+        },
+        {
+          "id": "inbox:accept:announce:add-to-shares-collection",
+          "text": "<code>Announce</code> increments object's count of shares by adding the received activity to the 'shares' collection if this collection is present"
+        },
+        {
+          "id": "inbox:accept:undo",
+          "text": "<code>Undo</code> performs Undo of object in federated context"
+        }
+      ]
+    }
+  ],
+  "outbox-remaining-questions": [
+    {
+      "title": "C2S Server: Undo details",
+      "questions": [
+        {
+          "id": "outbox:undo:ensures-activity-and-actor-are-same",
+          "text": "When performing an Undo received to the actor's outbox, the server ensures that the actor is the same for both the Undo activity and the activity being undone (the Undo's object)."
+        }
+      ]
+    }
+  ]
+}

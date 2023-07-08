@@ -1,0 +1,56 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+#    -   id: check-yaml
+#    -   id: check-json
+    -   id: check-toml
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+    -   id: check-added-large-files
+    -   id: check-case-conflict
+-   repo: https://github.com/psf/black
+    rev: 22.10.0
+    hooks:
+    -   id: black
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.0.274
+    hooks:
+    - id: ruff
+      args: [--fix, --exit-non-zero-on-fix]
+-   repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        name: isort (python)
+# - repo: https://github.com/econchick/interrogate
+#     rev: 1.4.0
+#     hooks:
+#       - id: interrogate
+#         args: [--vv, -i, --fail-under=80]
+# -   repo: local
+#     hooks:
+#       - id: pytest
+#         name: pytest
+#         entry: pytest
+#         language: system
+#         #name: pytest
+#         #entry: .venv/bin/pytest
+#         #language: script
+#         pass_filenames: false
+#         # alternatively you could `types: [python]` so it only runs when python files change
+#         # though tests might be invalidated if you were to say change a data file
+#         always_run: true
+-   repo: https://github.com/pre-commit/mirrors-mypy
+    rev: 'v1.4.0'  # Use the sha / tag you want to point at
+    hooks:
+    -   id: mypy
+        additional_dependencies: [tokenize-rt==3.2.0, types-decorator]
+-   repo: https://github.com/python-poetry/poetry
+    rev: '1.5'  # add version here
+    hooks:
+    -   id: poetry-check
+    -   id: poetry-lock
+    -   id: poetry-export
+        args: ["-f", "requirements.txt", "-o", "requirements.txt"]

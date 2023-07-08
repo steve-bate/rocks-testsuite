@@ -1,0 +1,10 @@
+<h2>{{ title | safe }}</h2>
+{{ description | safe }}
+<table class="input-table">
+    {% for question in questions %}
+    <tr>
+        <td><input name="{{ question.id }}" type="checkbox"></td>
+        <td>{{ question.text | safe }}</td>
+    </tr>
+    {% endfor %}
+</table>
