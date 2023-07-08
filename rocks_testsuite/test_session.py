@@ -27,8 +27,8 @@ class TestSession:
         _logger.info(
             f"Test session created: id={self._id}, "
             + f"remote_addr={websocket.client.host}, "
-            + f"fowarded={websocket.headers['X-Forwarded-For']}, "
-            + f"user-agent={websocket.headers['User-Agent']} "
+            + f"fowarded={websocket.headers.get('X-Forwarded-For')}, "
+            + f"user-agent={websocket.headers.get('User-Agent')} "
         )
 
     def _load_data(self, filename: str):
