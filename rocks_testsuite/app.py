@@ -16,9 +16,6 @@ _logger = logging.getLogger("rocks.app")
 base_dir = os.path.dirname(__file__)
 
 
-LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # logging needs to be configured here for proper reload behavior
@@ -65,7 +62,11 @@ def _setup_logging(level_name: int | str):
     # Hack to avoid silly uvicorn.error level naming
     logging.root.setLevel(logging.getLevelName(level_name))
     logging.getLogger("uvicorn.error").name = "uvicorn"
-    coloredlogs.install(milliseconds=True, level=level_name)
+    coloredlogs.install(
+        milliseconds=True,
+        level=level_name,
+        fmt="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
 
 
 def main():
