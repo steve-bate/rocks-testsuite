@@ -27,8 +27,8 @@ function withMaybeScroll(thunk) {
     var stream_metabox = document.getElementById("stream-metabox");
     var should_scroll = false;
     // if within a reasonable threshold, we scroll
-    if((stream_metabox.scrollHeight - stream_metabox.offsetHeight)
-       - stream_metabox.scrollTop <= 50) {
+    if ((stream_metabox.scrollHeight - stream_metabox.offsetHeight)
+        - stream_metabox.scrollTop <= 50) {
         should_scroll = true;
     }
     thunk();
@@ -105,7 +105,8 @@ function handleInputPromptMessage(message_json, ws) {
 
 var message_type_map = {
     "notice": handleNoticeMessage,
-    "input-prompt": handleInputPromptMessage}
+    "input-prompt": handleInputPromptMessage
+}
 
 function delegateMessage(message_json, ws) {
     message_type_map[message_json["type"]](message_json, ws);
@@ -119,11 +120,11 @@ function installWebsocket() {
     }
     var address = protocol.concat(window.location.hostname, ":", window.location.port);
     var ws = new WebSocket(address);
-    ws.onmessage = function(evt) {
+    ws.onmessage = function (evt) {
         console.log(evt.data);
         delegateMessage(JSON.parse(evt.data), ws);
     };
-    ws.onopen = function() {
+    ws.onopen = function () {
         setConnectedText("connected", "connected");
         console.log("connected");
     };
@@ -133,7 +134,7 @@ function installWebsocket() {
         // wipes the input
         const metabox = document.getElementById("stream-metabox")
         metabox.style.pointerEvents = "none";
-        //metabox.style.opacity = 0.15;
+        metabox.style.backgroundColor = "#ffb2ae !important"
         displayMessage(
             "* You have been disconnected.  Refresh to (hopefully) reconnect.",
             true);
@@ -160,7 +161,8 @@ function processText(input) {
 
 var input_type_processors = {
     "checkbox": processCheckbox,
-    "text": processText}
+    "text": processText
+}
 
 function getDataFromActivePrompt() {
     var prompt = getActivePrompt();
@@ -182,15 +184,17 @@ function getDataFromActivePrompt() {
 
 function submitGoBack(ws) {
     disableActivePrompt();
-    sendMessageToServer(ws, JSON.stringify({"action": "rewind"}));
+    sendMessageToServer(ws, JSON.stringify({ "action": "rewind" }));
 }
 
 function submitCurrentPrompt(ws) {
     var data = getDataFromActivePrompt();
     disableActivePrompt();
     console.log(data);
-    sendMessageToServer(ws, JSON.stringify({"action": "send-input",
-                                            "data": data}));
+    sendMessageToServer(ws, JSON.stringify({
+        "action": "send-input",
+        "data": data
+    }));
 }
 
 function disableActivePrompt() {
