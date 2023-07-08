@@ -134,7 +134,7 @@ function installWebsocket() {
         // wipes the input
         const metabox = document.getElementById("stream-metabox")
         metabox.style.pointerEvents = "none";
-        metabox.style.backgroundColor = "#ffb2ae !important"
+        metabox.style.backgroundColor = "#ffb2ae"
         displayMessage(
             "* You have been disconnected.  Refresh to (hopefully) reconnect.",
             true);
