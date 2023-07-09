@@ -20,5 +20,5 @@ RUN apt-get -y update && apt-get -y install python3
 COPY --from=build /opt/venv /opt/venv
 
 ENV PATH="/opt/venv/bin:$PATH"
-EXPOSE 8008
-CMD ["/opt/venv/bin/rocks"]
+EXPOSE 8000
+CMD ["/opt/venv/bin/rocks", "--host=0.0.0.0"]
