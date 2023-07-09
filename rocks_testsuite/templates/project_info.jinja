@@ -24,12 +24,10 @@
 {{ item_table(results["client-test-items"]) }}
 {% endif %}
 
-{# TODO C2S testing and reporting
 {% if config["testing-c2s-server"] %}
 <h3>Server: Client-to-Server tests</h3>
-{{ item_table(results) }}
+{{ item_table(results["c2s-server-test-items"]) }}
 {% endif %}
-#}
 
 {#
 - server-inbox-deliver-c2s

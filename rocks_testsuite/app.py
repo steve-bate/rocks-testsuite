@@ -5,11 +5,11 @@ from contextlib import asynccontextmanager
 
 import coloredlogs
 import uvicorn
-from fastapi import FastAPI, Request, WebSocket
+from fastapi import FastAPI, HTTPException, Request, Response, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from rocks_testsuite.test_session import TestSession
+from rocks_testsuite.test_session import TestSession, TestSessionManager
 
 _logger = logging.getLogger("rocks.app")
 
@@ -21,6 +21,7 @@ async def lifespan(app: FastAPI):
     # logging needs to be configured here for proper reload behavior
     log_level = os.environ["TESTSUITE_LOG_LEVEL"] or logging.INFO
     _setup_logging(log_level)
+    app.state.session_manager = TestSessionManager()
     yield
 
 
@@ -47,15 +48,27 @@ def app_page(request: Request):
 
 
 # emulating activitypub actors and endpoints
-@app.get("/ap/u/{db_key}/{client_id}/{pseudo_actor}/{suffix:path}")
-def activitypub(client_id: str, pseudo_actor: str, suffix: str):
-    print("activitypub", client_id, pseudo_actor, suffix)
+@app.route("/ap/u/{session_id}/{actor_id}/{path:path}", methods=["GET", "POST"])
+async def activitypub(request: Request) -> Response:
+    _logger.info(f"ActivityPub request: {request}, {request.path_params}")
+    session = request.app.state.session_manager.sessions.get(
+        request.path_params["session_id"]
+    )
+    if session:
+        return await session.process_actor_request(request)
+    else:
+        raise HTTPException(404, detail="Unknown test session")
 
 
 @app.websocket("/")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    await TestSession(websocket, templates.env).run()
+    session = TestSession(websocket, templates.env)
+    try:
+        websocket.app.state.session_manager.sessions[session.id] = session
+        await session.run()
+    finally:
+        del websocket.app.state.session_manager.sessions[session.id]
 
 
 def _setup_logging(level_name: int | str):
@@ -100,3 +113,7 @@ def main():
         log_config=None,
         **args.__dict__,
     )
+
+
+if __name__ == "__main__":
+    main()

@@ -150,7 +150,7 @@
       ]
     }
   ],
-  "server-inbox-deliver-c2s": [
+  "server-inbox-delivery-c2s": [
     {
       "title": "S2S Server: Federating from the outbox",
       "description": "Construct and submit activities to your actor's outbox making use of the <code>to</code>, <code>cc</code>, <code>bcc</code>, and <code>bto</code> addressing fields. ",
