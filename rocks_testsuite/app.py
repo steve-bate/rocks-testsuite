@@ -117,6 +117,8 @@ def main():
             "rocks_testsuite/templates",
             "rocks_testsuite/static",
         ]
+    else:
+        args.reload_includes = None
 
     if args.config:
         os.environ["TESTSUITE_CONFIG"] = args.config
