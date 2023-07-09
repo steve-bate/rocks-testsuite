@@ -118,7 +118,9 @@ def main():
             "rocks_testsuite/static",
         ]
 
-    os.environ["TESTSUITE_CONFIG"] = args.config
+    if args.config:
+        os.environ["TESTSUITE_CONFIG"] = args.config
+
     # Passing log level via env for reload behavior
     os.environ["TESTSUITE_LOG_LEVEL"] = args.log_level
     _setup_logging(args.log_level)
