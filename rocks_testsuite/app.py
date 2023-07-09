@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -21,6 +22,16 @@ async def lifespan(app: FastAPI):
     # logging needs to be configured here for proper reload behavior
     log_level = os.environ["TESTSUITE_LOG_LEVEL"] or logging.INFO
     _setup_logging(log_level)
+
+    # This might (probably will) change later
+    config_file = os.environ.get("TESTSUITE_CONFIG")
+    if config_file:
+        with open(config_file) as fp:
+            config = json.load(fp)
+    else:
+        config = {}
+
+    app.state.config = config
     app.state.session_manager = TestSessionManager()
     yield
 
@@ -63,12 +74,13 @@ async def activitypub(request: Request) -> Response:
 @app.websocket("/")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    session = TestSession(websocket, templates.env)
+    state = websocket.app.state
+    session = TestSession(websocket, templates.env, state.config)
     try:
-        websocket.app.state.session_manager.sessions[session.id] = session
+        state.session_manager.sessions[session.id] = session
         await session.run()
     finally:
-        del websocket.app.state.session_manager.sessions[session.id]
+        del state.session_manager.sessions[session.id]
 
 
 def _setup_logging(level_name: int | str):
@@ -86,8 +98,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--config", help="optional config file")
     parser.add_argument(
-        "--reload", action="store_true", help="Reload app when files change"
+        "--reload",
+        action="store_true",
+        help="Reload app when files change",
     )
     parser.add_argument(
         "--log_level",
@@ -102,16 +117,20 @@ def main():
             "rocks_testsuite/templates",
             "rocks_testsuite/static",
         ]
+
+    os.environ["TESTSUITE_CONFIG"] = args.config
     # Passing log level via env for reload behavior
     os.environ["TESTSUITE_LOG_LEVEL"] = args.log_level
     _setup_logging(args.log_level)
-    # uvicorn wants lowercase level?
-    args.log_level = args.log_level.lower()
     _logger.info("ActivityPub test suite")
     uvicorn.run(
         "rocks_testsuite.app:app",
         log_config=None,
-        **args.__dict__,
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        reload_includes=args.reload_includes,
+        log_level=args.log_level.lower(),
     )
 
 

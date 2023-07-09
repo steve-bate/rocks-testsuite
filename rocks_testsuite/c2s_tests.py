@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any, Awaitable, Callable
 
@@ -66,12 +67,12 @@ class C2SServerTests:
         await self.run_test(self.test_outbox_removes_bto_and_bcc)
         await self.run_test(self.test_outbox_non_activity)
         await self.run_test(self.test_outbox_update)
-        #   ;;; We HAVE these tests, but since they didn't make it into
-        #   ;;; ActivityPub proper they're commented out of the test suite for now...
-        #   ;; (test-outbox-upload-media case-worker)
+        ## We HAVE these tests, but since they didn't make it into
+        ## ActivityPub proper they're commented out of the test suite for now...
+        # (test-outbox-upload-media case-worker)
         await self.run_test(self.test_outbox_activity_follow_undo)
-        #   ;; (test-outbox-verification case-worker)
-        #   ;; (test-outbox-subjective case-worker)
+        # (test-outbox-verification case-worker)
+        # (test-outbox-subjective case-worker)
         await self.run_test(self.test_outbox_activity_create)
         await self.run_test(self.test_outbox_activity_add_remove)
         await self.run_test(self.test_outbox_activity_like)
@@ -84,6 +85,7 @@ class C2SServerTests:
         await self._session.send_notice_str(f"Running test: {test.__name__}")
         results = await test()
         _logger.info(f"Test {test.__name__}: id={self._session.id}, results={results}")
+        await self._session.send_notice("results_table.jinja", {"items": results})
         self._results.update(results)
 
     async def setup_client(self):
@@ -161,6 +163,8 @@ class C2SServerTests:
                 "actor": self._apclient.uri,
                 "bto": actor_1.uri,
                 "bcc": actor_2.uri,
+                # Must be public to be seen by third party
+                "audience": "as:Public",
                 "object": {
                     "type": "Note",
                     "attributedTo": self._apclient.uri,
@@ -170,7 +174,9 @@ class C2SServerTests:
         )
         activity_uri = response.headers.get("Location")
         if activity_uri:
-            activity = await self._apclient.get_json(activity_uri)
+            # activity = await self._apclient.get_json(activity_uri)
+            third_party = await self._session.create_actor()
+            activity = await third_party.get_json(activity_uri)
             results["outbox:removes-bto-and-bcc"] = not (
                 "bcc" in activity and "bto" in activity
             )
@@ -211,7 +217,7 @@ class C2SServerTests:
         if value:
             if not isinstance(value, list):
                 value = [value]
-            return [cls._get_uri(v) for v in value]
+            return sorted(cls._get_uri(v) for v in value)
         return value
 
     async def test_outbox_update(self) -> TestResults:
@@ -312,24 +318,40 @@ class C2SServerTests:
 
         if follow_activity_uri:
             results["outbox:follow"] = True
+            # The original case seems to make some assumptions about accept behavior (?)
+
+            for attempt in range(10):
+                following = await self._apclient.get_json(
+                    self._apclient.profile["following"]
+                )
+                item_uris = [self._get_uri(i) for i in following.get("items", [])]
+                is_following = actor.uri in item_uris
+                if is_following:
+                    break
+                print("attempt", attempt)
+                await asyncio.sleep(1)
+
+            results["outbox:follow:adds-followed-object"] = is_following
+            if is_following:
+                response = await self._apclient.post_to_outbox(
+                    {
+                        "type": "Undo",
+                        "actor": self._apclient.uri,
+                        "object": follow_activity_uri,
+                    }
+                )
+                following = await self._apclient.get_json(
+                    self._apclient.profile["following"]
+                )
+                item_uris = [self._get_uri(i) for i in following.get("items", [])]
+                is_following = actor.uri in item_uris
+                results["outbox:undo"] = not is_following
+            else:
+                results["outbox:undo"] = TestInconclusive("Actor not followed")
         else:
             results["outbox:follow"] = False
-            return results
+            results["outbox:undo"] = TestInconclusive("Follow activity posting failed")
 
-        # The original case seems to make some assumptions about accept behavior (?)
-
-        # following = await self._apclient.get_json(self._apclient.profile["following"])
-        # pass
-
-        # response = await self._apclient.post_to_outbox({
-        #     "type": "Undo",
-        #     "actor": self._apclient.uri,
-        #     "object": follow_activity_uri
-        # })
-
-        results["outbox:undo"] = TestInconclusive(
-            "Accept behavior doesn't support follow completion?"
-        )
         return results
 
     async def test_outbox_activity_create(self):
@@ -359,8 +381,8 @@ class C2SServerTests:
             results["outbox:create"] = True
             activity = await self._apclient.get_json(activity_uri)
             object_ = activity["object"]
-            expected_to = [actor1.uri, actor2.uri]
-            expected_cc = [actor3.uri, actor4.uri, actor5.uri]
+            expected_to = sorted([actor1.uri, actor2.uri])
+            expected_cc = sorted([actor3.uri, actor4.uri, actor5.uri])
             results["outbox:create:merges-audience-properties"] = (
                 self._get_uris(activity, "to") == expected_to
                 and self._get_uris(activity, "cc") == expected_cc
@@ -449,17 +471,30 @@ class C2SServerTests:
         block_activity_uri = response.headers.get("Location")
         if block_activity_uri:
             results["outbox:block"] = True
-            # TODO have obnoxious_actor try to post a new note to inbox
-            # This requires http signatures in the TestActor
-            _logger.warn("TestActor posting not supported yet")
-            # results["outbox:block:prevent-interaction-with-actor"]
-            # Remove later inconclusive result
+            # Try to post a new note to inbox
+            response = await obnoxious_actor.post(
+                self._apclient.profile["inbox"],
+                {
+                    "object": {
+                        "type": "Note",
+                        "content": "Well, actually...",
+                        # Inbox implies the "to"
+                        # "to": self._apclient.uri,
+                        # Should block even without this
+                        # "attributedTo": obnoxious_actor.uri,
+                    }
+                },
+            )
+            # TODO could this be masked by authentication issues?
+            results[
+                "outbox:block:prevent-interaction-with-actor"
+            ] = response.status_code in [403, 405]
         else:
             results["outbox:block"] = False
+            results["outbox:block:prevent-interaction-with-actor"] = TestInconclusive(
+                "Block post didn't succeed"
+            )
 
-        results["outbox:block:prevent-interaction-with-actor"] = TestInconclusive(
-            "TestActor posting not supported yet"
-        )
         return results
 
     async def test_outbox_activity_add_remove(self):

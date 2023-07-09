@@ -4,14 +4,20 @@ import logging
 import os
 import uuid
 from datetime import datetime
+from functools import lru_cache
 from typing import Any, Tuple
 
+import httpx
 import jinja2
+from cryptography.hazmat.backends import default_backend as crypto_default_backend
+from cryptography.hazmat.primitives import serialization as crypto_serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 from rocks_testsuite.c2s_tests import C2SServerTests
 from rocks_testsuite.result import ResultCode
+from rocks_testsuite.signatures import HttpSignatureAuth
 
 _logger = logging.getLogger("rocks.session")
 
@@ -25,15 +31,14 @@ ResultsType = dict[str, dict[str, bool | ResultCode]]
 
 
 class TestSession:
-    def __init__(self, websocket: WebSocket, env: jinja2.Environment):
+    def __init__(self, websocket: WebSocket, env: jinja2.Environment, config: dict):
         self.id = uuid.uuid4().hex
         self.websocket = websocket
         self._templates = env
         self.results: ResultsType = collections.defaultdict(dict)
         self.metadata, self.questionnaire = self._load_test_data()
         self.actors: dict[str, "TestActor"] = {}
-        # This will be initialized before usage
-        self.config: dict[str, Any] = None  # type: ignore
+        self.config: dict[str, Any] = config or {}
         _logger.info(
             f"Test session created: id={self.id}, "
             + f"remote_addr={websocket.client.host}, "
@@ -59,7 +64,7 @@ class TestSession:
         try:
             await self.send_notice("greeting.jinja")
             while True:
-                self.config = await self.send_question("setup.jinja")
+                self.config.update(await self.send_question("setup.jinja"))
                 # This validation could be done in the browser,
                 # but this was the original way
                 if any(
@@ -135,7 +140,10 @@ class TestSession:
     async def send_notice(
         self, template_name: str, context: dict[str, Any] | None = None
     ):
-        content = self._templates.get_template(template_name).render(context or {})
+        context = context or {}
+        if "session" not in context:
+            context["session"] = self
+        content = self._templates.get_template(template_name).render(context)
         await self.websocket.send_json(
             {
                 "type": "notice",
@@ -156,7 +164,10 @@ class TestSession:
         template_name: str,
         context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        content = self._templates.get_template(template_name).render(context or {})
+        context = context or {}
+        if "session" not in context:
+            context["session"] = self
+        content = self._templates.get_template(template_name).render(context)
         answers = await self.send_question_str(content)
         _logger.info(
             f"Question: id={self.id}, template={template_name}, answers={answers}"
@@ -247,18 +258,49 @@ class TestSession:
         _logger.info(f"Question group: id={self.id}, results={results}")
 
 
+# Use same keys for all test actors
+@lru_cache
+def get_key_pair() -> Tuple[str, str]:
+    pair = rsa.generate_private_key(
+        backend=crypto_default_backend(), public_exponent=65537, key_size=2048
+    )
+    return (
+        pair.public_key()
+        .public_bytes(
+            crypto_serialization.Encoding.PEM,
+            crypto_serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode(),
+        pair.private_bytes(
+            crypto_serialization.Encoding.PEM,
+            crypto_serialization.PrivateFormat.PKCS8,
+            # FIXME support encryption with a configured passphrase
+            crypto_serialization.NoEncryption(),
+        ).decode(),
+    )
+
+
 class TestActor:
     _id_counter = 1
 
     def __init__(self, session: TestSession, uri: str):
         self.session = session
         self.uri = uri
+        public_key, private_key = get_key_pair()
+        key_id = f"{uri}#main-key"
         self.profile = {
             "id": uri,
             "preferredUsername": f"actor-{TestActor._id_counter}",
             "inbox": f"{uri}/inbox",
             "outbox": f"{uri}/outbox",
+            "publicKey": {
+                "id": key_id,
+                "owner": uri,
+                "publicKeyPem": public_key,
+            },
         }
+        self.auth = HttpSignatureAuth(key_id, private_key)
+        self.private_key = private_key
         TestActor._id_counter += 1
         self.inbox: list[dict[str, Any]] = []
 
@@ -271,17 +313,52 @@ class TestActor:
             self.inbox.append(activity)
             # Auto accept follow
             if activity["type"] == "Follow":
-                _logger.warn("Accept/Follow not implemented")
-                # async with httpx.AsyncClient() as client:
-                #     # get following actor
-                #     response = await client.get(
-                #         activity["actor"],
-                #         headers={"Accept": "application/activity+json"},
-                #         timeout=None,
-                #     )
-                #     response.raise_on_status()
-                #     following_actor = response.json()
-                #     # TODO boo... this is going to need http sigs, etc.
+                async with httpx.AsyncClient() as client:
+                    # get following actor
+                    response = await client.get(
+                        activity["actor"],
+                        headers={"Accept": "application/activity+json"},
+                        timeout=None,
+                        auth=self.auth,
+                    )
+                    response.raise_for_status()
+                    following_actor = response.json()
+                    response = await self.post(
+                        following_actor["inbox"],
+                        {
+                            "id": f"{self.uri}/accept-{uuid.uuid4()}",
+                            "type": "Accept",
+                            "actor": self.uri,
+                            "object": activity["id"],
+                        },
+                    )
+                    response.raise_for_status()
+                    _logger.info(f"Accept sent: session={self.session.id}")
             return Response("Accepted", 202)
         else:
             raise HTTPException(404, "Actor path not found")
+
+    async def get_json(self, url: str):
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                url,
+                headers={"Accept": "application/activity+json"},
+                auth=self.auth,
+                timeout=None,
+            )
+            response.raise_for_status()
+            return response.json()
+
+    async def post(self, url: str, json_data: dict[str, Any]):
+        if "id" not in json_data:
+            json_data["id"] = f"{self.uri}/accept-{uuid.uuid4()}"
+        if "actor" not in json_data:
+            json_data["actor"] = self.uri
+        async with httpx.AsyncClient() as client:
+            return await client.post(
+                url,
+                json=json_data,
+                headers={"Content-Type": "application/activity+json"},
+                auth=self.auth,
+                timeout=None,
+            )

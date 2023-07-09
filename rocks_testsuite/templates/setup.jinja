@@ -1,7 +1,7 @@
 <h2>What implementations are we testing today?</h2>
 <table class="input-table">
     <tr>
-        <td><input name="testing-client" type="checkbox"></td>
+        <td><input name="testing-client" type="checkbox" {{ "checked" if session.config.get("testing-client") else "" }}></td>
         <td><b>ActivityPub client</b><br>
             I'm testing an ActivityPub client which speaks the
             <a href="https://www.w3.org/TR/activitypub/#client-to-server-interactions">ActivityPub client-to-server
@@ -9,7 +9,7 @@
         </td>
     </tr>
     <tr>
-        <td><input name="testing-c2s-server" type="checkbox"></td>
+        <td><input name="testing-c2s-server" type="checkbox" {{ "checked" if session.config.get("testing-c2s-server") else "" }}></td>
         <td><b>ActivityPub client-to-server server</b><br>
             I'm testing an ActivityPub server which follows the commands of clients through the
             <a href="https://www.w3.org/TR/activitypub/#client-to-server-interactions">ActivityPub client-to-server
@@ -17,7 +17,7 @@
         </td>
     </tr>
     <tr>
-        <td><input name="testing-s2s-server" type="checkbox"></td>
+        <td><input name="testing-s2s-server" type="checkbox" {{ "checked" if session.config.get("testing-s2s-server") else "" }}></td>
         <td><b>ActivityPub federated server</b><br>
             I'm testing an ActivityPub server which speaks to other servers over the
             <a href="https://www.w3.org/TR/activitypub/#server-to-server-interactions">ActivityPub server-to-server
@@ -28,7 +28,7 @@
 <table class="input-table">
     <tr>
         <td style="padding-top: 1em; padding-left: 1em;">
-            <input name="verbose-debugging" type="checkbox">
+            <input name="verbose-debugging" type="checkbox" {{ "checked" if session.config.get("verbose-debugging") else "" }}>
         </td>
         <td style="padding-top: 1em;">
             <em>Check if you'd like verbose debugging about what HTTP requests the server is running.</em>

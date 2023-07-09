@@ -1,32 +1,15 @@
-{% macro item_table(items) %}
-<table>
-    {% for test_id, result in items.items() %}
-    <tr>
-        <td>
-            <b>{{ metadata["test_id"].requirement_level if "test_id" in metadata else "" }} {{ test_id }}:
-                {{ metadata["test_id"].description if "test_id" in metadata else ""}}</b>
-        </td>
-        <td style="text-align: right;" nowrap>
-            <b>[
-                {% if result == True %}<span class="result-log-success">Yes</span>{% endif %}
-                {% if result == False %}<span class="result-log-fail">No</span>{% endif %}
-            ]</b>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
-{% endmacro %}
+{% from "macros/tables.jinja" import results_table %}
 
 <h2 style="text-align: center;">Results</h2>
 
 {% if config["testing-client"] %}
 <h3>Client tests</h3>
-{{ item_table(results["client-test-items"]) }}
+{{ results_table(results["client-test-items"]) }}
 {% endif %}
 
 {% if config["testing-c2s-server"] %}
 <h3>Server: Client-to-Server tests</h3>
-{{ item_table(results["c2s-server-test-items"]) }}
+{{ results_table(results["c2s-server-test-items"]) }}
 {% endif %}
 
 {#
@@ -37,12 +20,12 @@
 
 {% if config["testing-s2s-server"] %}
 <h3>Server: Federation tests</h3>
-{{ item_table(results["server-inbox-test-items"]) }}
+{{ results_table(results["server-inbox-test-items"]) }}
 {% endif %}
 
 {% if config["testing-c2s-server"] or config["testing-s2s-server"] %}
 <h3>Server: Common tests</h3>
-{{ item_table(results["server-common-test-items"]) }}
+{{ results_table(results["server-common-test-items"]) }}
 {% endif %}
 
 <hr>
