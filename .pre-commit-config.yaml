@@ -54,3 +54,10 @@ repos:
     -   id: poetry-lock
     -   id: poetry-export
         args: ["-f", "requirements.txt", "-o", "requirements.txt"]
+-   repo: local
+    hooks:
+    -   id: nocommit
+        name: NOCOMMIT check
+        entry: NOCOMMIT
+        language: pygrep
+        types: [python, jinja, json]
