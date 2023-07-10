@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from json import JSONDecodeError
 from typing import Any, Awaitable, Callable
 
 import httpx
@@ -89,8 +90,28 @@ class C2SServerTests:
         self._results.update(results)
 
     async def setup_client(self):
-        answer = await self._session.send_question("get_actor_uri.jinja")
-        profile = await _get_json(answer["actor-id"])
+        actor_uri = None
+        while True:
+            answer = await self._session.send_question(
+                "get_actor_uri.jinja",
+                {"actor_uri": actor_uri},
+            )
+            actor_uri = answer["actor-id"]
+            try:
+                profile = await _get_json(actor_uri)
+                break
+            except JSONDecodeError:
+                _logger.error(f"Failed to parse actor JSON-LD for {actor_uri}")
+                await self._session.send_notice_str(
+                    "<span class='result-log-fail'>Failed to "
+                    "parse actor profile JSON-LD</span>"
+                )
+            except Exception:
+                _logger.error("Failed to retrieve actor", exc_info=1)
+                await self._session.send_notice_str(
+                    "<span class='result-log-fail'>Failed to "
+                    "retrieve actor profile</span>"
+                )
         token = await self.get_auth_token(profile)
         self._apclient = APClient(profile, token)
         _logger.info(f"APClient created for {self._apclient.uri}")

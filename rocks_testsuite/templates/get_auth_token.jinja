@@ -5,5 +5,5 @@ Unable to find OAuth endpoints... please manually insert the auth token:
 {% endif %}
 <dl>
     <dt><b>Auth token</b></dt>
-    <dd><input type="text" name="auth-token" value={{ session.config.get("auth-token") }}></dd>
+    <dd><input type="text" name="auth-token" value={{ session.config.get("auth-token") or "" }}></dd>
 </dl>
