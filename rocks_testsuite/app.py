@@ -107,7 +107,7 @@ def _setup_logging(level_name: int | str):
     coloredlogs.install(
         milliseconds=True,
         level=level_name,
-        fmt="%(asctime)s %(levelname)s %(name)s %(message)s",
+        fmt="%(asctime)s %(levelname)s [%(name)s] %(message)s",
     )
 
 
