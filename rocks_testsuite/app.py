@@ -53,6 +53,18 @@ app.mount(
 templates = Jinja2Templates(directory=f"{base_dir}/templates")
 
 
+@app.head("/")
+def head():
+    return Response(
+        None,
+        200,
+        headers={
+            "Content-Length": "1200",  # Approximation
+            "Content-Type": "text/html; charset=utf-8",
+        },
+    )
+
+
 @app.get("/")
 def app_page(request: Request):
     return templates.TemplateResponse("app.jinja", {"request": request})
@@ -81,6 +93,11 @@ async def websocket_endpoint(websocket: WebSocket):
         await session.run()
     finally:
         del state.session_manager.sessions[session.id]
+
+
+@app.get("/healthcheck")
+def health_check():
+    return "OK"
 
 
 def _setup_logging(level_name: int | str):
