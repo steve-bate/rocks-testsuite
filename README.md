@@ -24,6 +24,21 @@ poetry run rocks  # or use poetry shell
 
 The server does not use SSL so if you need that you'll need to set up a reverse proxy or a secure tunnel.
 
+### Docker
+
+```
+docker build -t rocks-testsuite .
+docker run -p 8000:8000 rocks-testsuite
+```
+
+## Development
+
+There's a `pre-commit` configuration defined to check the project before a git commit. When developing, you can install from the poetry shell with:
+
+```
+pre-commit install
+```
+
 ## Implementation Notes
 
 The web application uses web sockets and a small Javascript program to send information to the browser and receive form submissions results.
