@@ -42,7 +42,7 @@ class TestSession:
         _logger.info(
             f"Test session created: id={self.id}, "
             + f"remote_addr={websocket.client.host}, "
-            + f"fowarded={websocket.headers.get('X-Forwarded-For')}, "
+            + f"forwarded={websocket.headers.get('X-Forwarded-For')}, "
             + f"user-agent={websocket.headers.get('User-Agent')} "
         )
 
