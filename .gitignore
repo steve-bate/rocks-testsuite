@@ -166,3 +166,4 @@ cython_debug/
 
 */reports/*.json
 config.json
+logs/
