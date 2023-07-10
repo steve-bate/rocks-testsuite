@@ -6,7 +6,12 @@ from typing import Any, Awaitable, Callable
 import httpx
 from fastapi import Response
 
-from rocks_testsuite.result import TestFailure, TestInconclusive, TestResults
+from rocks_testsuite.result import (
+    TestFailure,
+    TestInconclusive,
+    TestNotApplicable,
+    TestResults,
+)
 
 _logger = logging.getLogger("rocks.session")
 
@@ -41,7 +46,9 @@ class APClient:
     async def get_json(self, url: str):
         return await _get_json(url, self.token)
 
-    async def post_to_outbox(self, obj: dict) -> Response:
+    async def post_to_outbox(self, obj: dict, is_object: bool = False) -> Response:
+        if not is_object and "actor" not in obj:
+            obj["actor"] = self.uri
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 self.profile["outbox"],
@@ -89,6 +96,19 @@ class C2SServerTests:
         await self._session.send_notice("results_table.jinja", {"items": results})
         self._results.update(results)
 
+    @staticmethod
+    def _get_uri(obj: dict | str) -> str | None:
+        return obj.get("id") if isinstance(obj, dict) else obj
+
+    @classmethod
+    def _get_uris(cls, obj: dict, key: str):
+        value = obj.get(key)
+        if value:
+            if not isinstance(value, list):
+                value = [value]
+            return sorted(cls._get_uri(v) for v in value)
+        return value
+
     async def setup_client(self):
         actor_uri = None
         while True:
@@ -126,6 +146,35 @@ class C2SServerTests:
         )
         return answers["auth-token"]
 
+    async def item_uris(
+        self, collection_uri: str, max_count: int = 100, count: int = 0
+    ):
+        collection = await self._apclient.get_json(collection_uri)
+        for item_key in ["items", "orderedItems"]:
+            # We can't rely on the collection "type". It's compliant to
+            # have a Collection with orderedItems or a collection with multiple
+            # types or even a collection with both items and orderedItems.
+            # It might be insane, but... that's a different discussion.
+            if item_key in collection:
+                items = collection[item_key]
+                if not isinstance(items, list):
+                    items = [items]
+                for item in items:
+                    item_uri = self._get_uri(item)
+                    if item_uri is not None:
+                        yield item_uri
+                        count += 1
+                        if count == max_count:
+                            return
+        for page_key in ["first", "next"]:
+            if page_key in collection:
+                page_uri = collection[page_key]
+                for item in self.item_uris(page_uri, max_count, count):
+                    yield self._get_uri(item)
+                    count += 1
+                    if count == max_count:
+                        return
+
     async def test_outbox_activity_posted(self) -> TestResults:
         results: TestResults = {}
         activity_submitted = None
@@ -134,7 +183,6 @@ class C2SServerTests:
             {
                 "id": id_to_replace,
                 "type": "Create",
-                "actor": self._apclient.uri,
                 "object": {
                     "type": "Note",
                     "attributedTo": self._apclient.uri,
@@ -181,7 +229,6 @@ class C2SServerTests:
         response = await self._apclient.post_to_outbox(
             {
                 "type": "Create",
-                "actor": self._apclient.uri,
                 "bto": actor_1.uri,
                 "bcc": actor_2.uri,
                 # Must be public to be seen by third party
@@ -196,6 +243,7 @@ class C2SServerTests:
         activity_uri = response.headers.get("Location")
         if activity_uri:
             # activity = await self._apclient.get_json(activity_uri)
+            # TODO SPEC It's not clear if an activity owner can see bto and bcc
             third_party = await self._session.create_actor()
             activity = await third_party.get_json(activity_uri)
             results["outbox:removes-bto-and-bcc"] = not (
@@ -210,7 +258,7 @@ class C2SServerTests:
     async def test_outbox_non_activity(self) -> TestResults:
         results: TestResults = {}
         note = {"type": "Note", "content": "Up for some root beer floats?"}
-        response = await self._apclient.post_to_outbox(note)
+        response = await self._apclient.post_to_outbox(note, is_object=True)
         activity_uri = response.headers.get("Location")
         if activity_uri:
             activity = await self._apclient.get_json(activity_uri)
@@ -228,26 +276,12 @@ class C2SServerTests:
             )
         return results
 
-    @staticmethod
-    def _get_uri(obj: dict | str) -> str:
-        return obj["id"] if isinstance(obj, dict) else obj
-
-    @classmethod
-    def _get_uris(cls, obj: dict, key: str):
-        value = obj.get(key)
-        if value:
-            if not isinstance(value, list):
-                value = [value]
-            return sorted(cls._get_uri(v) for v in value)
-        return value
-
     async def test_outbox_update(self) -> TestResults:
         results: TestResults = {}
         # Submit original activity
         response = await self._apclient.post_to_outbox(
             {
                 "type": "Create",
-                "actor": self._apclient.uri,
                 "object": {
                     "type": "Note",
                     "attributedTo": self._apclient.uri,
@@ -269,7 +303,6 @@ class C2SServerTests:
         response = await self._apclient.post_to_outbox(
             {
                 "type": "Update",
-                "actor": self._apclient.uri,
                 "object": {
                     "id": object_uri,
                     "type": "Note",
@@ -297,7 +330,6 @@ class C2SServerTests:
         response = await self._apclient.post_to_outbox(
             {
                 "type": "Update",
-                "actor": self._apclient.uri,
                 "object": {
                     "id": object_uri,
                     "type": "Note",
@@ -329,7 +361,6 @@ class C2SServerTests:
         response = await self._apclient.post_to_outbox(
             {
                 "type": "Follow",
-                "actor": self._apclient.uri,
                 "to": actor.uri,
                 "object": actor.uri,
             }
@@ -341,15 +372,18 @@ class C2SServerTests:
             results["outbox:follow"] = True
             # The original case seems to make some assumptions about accept behavior (?)
 
-            for attempt in range(10):
-                following = await self._apclient.get_json(
-                    self._apclient.profile["following"]
-                )
-                item_uris = [self._get_uri(i) for i in following.get("items", [])]
-                is_following = actor.uri in item_uris
+            async def actor_is_following():
+                async for uri in self.item_uris(self._apclient.profile["following"]):
+                    if actor.uri == uri:
+                        return True
+                return False
+
+            # It can take a while for the Follow to be processed
+            is_following = False
+            for _ in range(5):
+                is_following = await actor_is_following()
                 if is_following:
                     break
-                print("attempt", attempt)
                 await asyncio.sleep(1)
 
             results["outbox:follow:adds-followed-object"] = is_following
@@ -357,15 +391,15 @@ class C2SServerTests:
                 response = await self._apclient.post_to_outbox(
                     {
                         "type": "Undo",
-                        "actor": self._apclient.uri,
                         "object": follow_activity_uri,
                     }
                 )
-                following = await self._apclient.get_json(
-                    self._apclient.profile["following"]
-                )
-                item_uris = [self._get_uri(i) for i in following.get("items", [])]
-                is_following = actor.uri in item_uris
+                # if_following is True here
+                for _ in range(5):
+                    is_following = await actor_is_following()
+                    if not is_following:
+                        break
+                    await asyncio.sleep(1)
                 results["outbox:undo"] = not is_following
             else:
                 results["outbox:undo"] = TestInconclusive("Actor not followed")
@@ -388,7 +422,6 @@ class C2SServerTests:
                 "type": "Create",
                 "to": [actor1.uri, actor2.uri],
                 "cc": actor3.uri,
-                "actor": self._apclient.uri,
                 "object": {
                     "type": "Note",
                     "cc": [actor4.uri, actor5.uri],
@@ -428,11 +461,17 @@ class C2SServerTests:
     async def test_outbox_activity_like(self):
         results: TestResults = {}
 
+        if "liked" not in self._apclient.profile:
+            # Server doesn't support liked collections
+            inconclusive = TestNotApplicable("Like not supported")
+            results["outbox:like"] = inconclusive
+            results["outbox:like:adds-object-to-liked"] = inconclusive
+            return results
+
         # Create a note to like
         response = await self._apclient.post_to_outbox(
             {
                 "type": "Create",
-                "actor": self._apclient.uri,
                 "object": {
                     "type": "Note",
                     "content": "A very likable post!",
@@ -450,7 +489,6 @@ class C2SServerTests:
             response = await self._apclient.post_to_outbox(
                 {
                     "type": "Like",
-                    "actor": self._apclient.uri,
                     "object": likable_note_uri,
                 }
             )
@@ -458,21 +496,18 @@ class C2SServerTests:
                 results["outbox:like"] = True
             # Check if liked in collection
             # TODO handle optional liked collection
-            # TODO handle paged collections
-            liked = await self._apclient.get_json(self._apclient.profile["liked"])
-            # TODO dont' assume unordered collection
-            liked_items = liked["items"]
-            results["outbox:like:adds-object-to-liked"] = likable_note_uri in [
-                self._get_uri(i) for i in liked_items
-            ]
+            liked_uri = self._apclient.profile["liked"]
+            note_liked = False
+            async for uri in self.item_uris(liked_uri):
+                if likable_note_uri == uri:
+                    note_liked = True
+                    break
+            results["outbox:like:adds-object-to-liked"] = note_liked
         else:
             results["outbox:create"] = False
-            results["outbox:create:merges-audience-properties"] = TestInconclusive(
-                "Create failed"
-            )
-            results["outbox:create:actor-to-attributed-to"] = TestInconclusive(
-                "Create failed"
-            )
+            inconclusive = TestInconclusive("Setup failed (note creation)")
+            results["outbox:like"] = inconclusive
+            results["outbox:like:adds-object-to-liked"] = inconclusive
 
         return results
 
@@ -484,7 +519,6 @@ class C2SServerTests:
         response = await self._apclient.post_to_outbox(
             {
                 "type": "Block",
-                "actor": self._apclient.uri,
                 "object": obnoxious_actor.uri,
             }
         )
@@ -526,7 +560,6 @@ class C2SServerTests:
         response = await self._apclient.post_to_outbox(
             {
                 "type": "Create",
-                "actor": self._apclient.uri,
                 "object": {
                     "type": "Collection",
                     "name": "test collection",
@@ -537,11 +570,9 @@ class C2SServerTests:
         collection_create_activity_uri = response.headers.get("Location")
         if collection_create_activity_uri:
             # Create a note
-            # TODO SPEC The original test suite Added a note without an id?
             response = await self._apclient.post_to_outbox(
                 {
                     "type": "Create",
-                    "actor": self._apclient.uri,
                     "object": {
                         "type": "Note",
                         "name": "I'm a note",
@@ -560,7 +591,6 @@ class C2SServerTests:
                 response = await self._apclient.post_to_outbox(
                     {
                         "type": "Add",
-                        "actor": self._apclient.uri,
                         # TODO SPEC Can't one add an existing note
                         # Wouldn't the identifier be replaced?
                         "object": note_uri,
@@ -570,16 +600,17 @@ class C2SServerTests:
                 add_activity_uri = response.headers.get("Location")
                 if add_activity_uri:
                     results["outbox:add"] = True
-                    collection = await self._apclient.get_json(collection_uri)
-                    item_uris = [self._get_uri(i) for i in collection.get("items", [])]
-                    note_was_added = note_uri in item_uris
+                    note_was_added = False
+                    async for uri in self.item_uris(collection_uri):
+                        if note_uri == uri:
+                            note_was_added = True
+                            break
                     results["outbox:add:adds-object-to-target"] = note_was_added
                     if note_was_added:
                         # Remove the item from the collection
                         response = await self._apclient.post_to_outbox(
                             {
                                 "type": "Remove",
-                                "actor": self._apclient.uri,
                                 # TODO SPEC We obviously need to specify a URI here
                                 # Wouldn't the identifier be replaced?
                                 "object": note_uri,
@@ -589,11 +620,14 @@ class C2SServerTests:
                         remove_activity_uri = response.headers.get("Location")
                         if remove_activity_uri:
                             results["outbox:remove"] = True
-                            collection = await self._apclient.get_json(collection_uri)
-                            item_uris = [self._get_uri(i) for i in collection["items"]]
-                            results["outbox:remove:removes-from-target"] = (
-                                note_uri not in item_uris
-                            )
+                            # Unfortunately, the negative test requires reading the full
+                            # collection up to the max count constraint.
+                            results[
+                                "outbox:remove:removes-from-target"
+                            ] = note_uri not in [
+                                self._get_uri(i)
+                                async for i in self.item_uris(collection_uri)
+                            ]
                         else:
                             results["outbox:remove"] = False
                             results["outbox:add:removes-from-target"] = False
