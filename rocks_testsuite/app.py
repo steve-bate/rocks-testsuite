@@ -151,6 +151,8 @@ def main():
         reload=args.reload,
         reload_includes=args.reload_includes,
         log_level=args.log_level.lower(),
+        proxy_headers=True,
+        forwarded_allow_ips="*",
     )
 
 
