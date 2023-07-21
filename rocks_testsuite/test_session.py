@@ -334,8 +334,13 @@ class TestActor:
                             "object": activity["id"],
                         },
                     )
-                    response.raise_for_status()
-                    _logger.info(f"Accept sent: session={self.session.id}")
+                    if response.is_success:
+                        _logger.info(f"Accept sent: session={self.session.id}")
+                    else:
+                        _logger.error(
+                            "Sending accept response failed: "
+                            f"{response.status_code} {response.reason_phrase}"
+                        )
             return Response("Accepted", 202)
         else:
             raise HTTPException(404, "Actor path not found")

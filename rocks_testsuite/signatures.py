@@ -1,7 +1,7 @@
 import base64
 from email.utils import formatdate
 from hashlib import sha256
-from typing import Generator, Sequence
+from typing import Generator
 from urllib.parse import urlparse
 
 from cryptography.hazmat.backends import default_backend as crypto_default_backend
@@ -14,14 +14,9 @@ from starlette.requests import HTTPConnection
 
 class HttpSignatureAuth(Auth):
     DEFAULT_HEADERS = ["(request-target)", "host", "date"]
+    POST_HEADERS = DEFAULT_HEADERS + ["digest"]
 
-    def __init__(
-        self,
-        key_id: str,
-        private_key: str,
-        signature_headers: Sequence[str] | None = None,
-    ):
-        self._headers = signature_headers or self.DEFAULT_HEADERS
+    def __init__(self, key_id: str, private_key: str):
         self._key_id = key_id
         self._private_key = crypto_serialization.load_pem_private_key(
             private_key.encode("utf-8"),
@@ -29,10 +24,15 @@ class HttpSignatureAuth(Auth):
             backend=crypto_default_backend(),
         )
 
+    @classmethod
+    def _headers(cls, conn: HTTPConnection) -> list[str]:
+        return cls.POST_HEADERS if conn.method == "POST" else cls.DEFAULT_HEADERS
+
     def construct_signature_data(self, conn: HTTPConnection) -> tuple[str, str]:
+        headers = self._headers(conn)
         signature_data = []
         used_headers = []
-        for header in self._headers:
+        for header in headers:
             # FIXME support created and expires pseudo-headers
             if header.lower() == "(request-target)":
                 method = (getattr(conn, "method", None) or conn.scope["method"]).lower()
@@ -48,22 +48,21 @@ class HttpSignatureAuth(Auth):
                 signature_data.append(f"{name}: {value}")
                 used_headers.append(name)
             else:
-                print(self._headers)
                 raise KeyError("Header %s not found", header)
         signature_text = "\n".join(signature_data)
         headers_text = " ".join(used_headers)
         return signature_text, headers_text
 
     def synthesize_headers(self, conn: HTTPConnection) -> None:
-        for header in self._headers:
+        for header in self._headers(conn):
             if header not in conn.headers:
                 if header.lower() == "date":
                     conn.headers["Date"] = formatdate(
                         timeval=None, localtime=False, usegmt=True
                     )
-                elif header.lower() == "digest" and conn.body is not None:
+                elif header.lower() == "digest" and conn.content is not None:
                     conn.headers["Digest"] = "SHA-256=" + base64.b64encode(
-                        sha256(conn.body).digest()
+                        sha256(conn.content).digest()
                     ).decode("utf-8")
                 elif header.lower() == "host":
                     conn.headers["Host"] = urlparse(conn.url).netloc

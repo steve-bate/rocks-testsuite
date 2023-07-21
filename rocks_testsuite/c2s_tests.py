@@ -94,8 +94,13 @@ class C2SServerTests:
 
     async def run_test(self, test: Callable[[], Awaitable[TestResults]]):
         await self._session.send_notice_str(f"Running test: {test.__name__}")
-        results = await test()
-        _logger.info(f"Test {test.__name__}: id={self._session.id}, results={results}")
+        try:
+            results = await test()
+            _logger.info(
+                f"Test {test.__name__}: id={self._session.id}, results={results}"
+            )
+        except Exception as ex:
+            results = {test.__name__: TestFailure(f"Test exception: {ex}")}
         await self._session.send_notice("results_table.jinja", {"items": results})
         self._results.update(results)
 

@@ -1,4 +1,4 @@
-{% macro results_table(items) %}
+{% macro results_table(items, include_comments=True) %}
 <table>
     {% for test_id, result in items.items() %}
     <tr>
@@ -10,13 +10,14 @@
             <b>[
                 {% if result == True %}<span class="result-log-success">Yes</span>{% endif %}
                 {% if result == False %}<span class="result-log-fail">No</span>{% endif %}
+                {% if result is mapping and result.code == "TestFailure" %}<span class="result-log-fail">No</span>{% endif %}
                 {% if result is mapping and result.code == "TestInconclusive" %}<span class="result-log-inconclusive">Inconclusive</span>{% endif %}
                 {% if result is mapping and result.code == "NotApplicable" %}<span class="result-log-not-applicable">N/A</span>{% endif %}
             ]</b>
         </td>
         {% if include_comments %}
         <td>
-            {% if result is mapping %}
+            {% if result.comment %}
             {{ result.comment }}
             {% endif %}
         </td>
