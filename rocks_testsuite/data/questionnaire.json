@@ -145,7 +145,7 @@
         },
         {
           "id": "server:security-considerations:sanitize-fields",
-          "text": "Implementation takes care to santizie fields containing markup to prevent cross site scripting attacks"
+          "text": "Implementation takes care to sanitize fields containing markup to prevent cross site scripting attacks"
         }
       ]
     }
