@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import uuid
 from json import JSONDecodeError
 from typing import Any, Awaitable, Callable
 
@@ -47,6 +48,8 @@ class APClient:
         return await _get_json(url, self.token)
 
     async def post_to_outbox(self, obj: dict, is_object: bool = False) -> Response:
+        if "@context" not in obj:
+            obj["@context"] = "https://www.w3.org/ns/activitystreams"
         if not is_object and "actor" not in obj:
             obj["actor"] = self.uri
         async with httpx.AsyncClient() as client:
@@ -562,7 +565,7 @@ class C2SServerTests:
                 "type": "Create",
                 "object": {
                     "type": "Collection",
-                    "name": "test collection",
+                    "name": "test collection " + uuid.uuid4().hex,
                 },
             }
         )

@@ -289,6 +289,7 @@ class TestActor:
         public_key, private_key = get_key_pair()
         key_id = f"{uri}#main-key"
         self.profile = {
+            "@context": "https://www.w3.org/ns/activitystreams",
             "id": uri,
             "preferredUsername": f"actor-{TestActor._id_counter}",
             "inbox": f"{uri}/inbox",
@@ -326,6 +327,7 @@ class TestActor:
                     response = await self.post(
                         following_actor["inbox"],
                         {
+                            "@context": "https://www.w3.org/ns/activitystreams",
                             "id": f"{self.uri}/accept-{uuid.uuid4()}",
                             "type": "Accept",
                             "actor": self.uri,
