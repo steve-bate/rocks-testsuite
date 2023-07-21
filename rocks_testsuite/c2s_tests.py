@@ -140,7 +140,7 @@ class C2SServerTests:
         auth_token_endpoint = None
         endpoints = profile.get("endpoints")
         if endpoints:
-            auth_token_endpoint = endpoints.get("getAuthToken")
+            auth_token_endpoint = endpoints.get("oauthAuthorizationEndpoint")
         answers = await self._session.send_question(
             "get_auth_token.jinja", {"auth_token_endpoint": auth_token_endpoint}
         )
