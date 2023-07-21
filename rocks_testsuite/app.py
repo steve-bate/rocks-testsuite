@@ -71,6 +71,7 @@ def app_page(request: Request):
 
 
 # emulating activitypub actors and endpoints
+@app.route("/ap/u/{session_id}/{actor_id}", methods=["GET", "POST"])
 @app.route("/ap/u/{session_id}/{actor_id}/{path:path}", methods=["GET", "POST"])
 async def activitypub(request: Request) -> Response:
     session = request.app.state.session_manager.sessions.get(

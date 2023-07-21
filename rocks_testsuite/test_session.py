@@ -306,8 +306,8 @@ class TestActor:
         self.inbox: list[dict[str, Any]] = []
 
     async def process_request(self, request: Request) -> Response:
-        path = request.path_params["path"]
-        if path == "":
+        path = request.path_params.get("path")
+        if path == "" or path is None:
             return JSONResponse(self.profile, media_type="application/activity+json")
         elif path == "inbox":
             activity = await request.json()
