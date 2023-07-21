@@ -172,8 +172,8 @@ class C2SServerTests:
         for page_key in ["first", "next"]:
             if page_key in collection:
                 page_uri = collection[page_key]
-                for item in self.item_uris(page_uri, max_count, count):
-                    yield self._get_uri(item)
+                async for item in self.item_uris(page_uri, max_count, count):
+                    yield item
                     count += 1
                     if count == max_count:
                         return
